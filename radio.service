@@ -1,0 +1,18 @@
+# copy this file to /etc/systemd/system
+# make is executable
+#
+
+[Unit]
+Description=RADIO
+After=network.target
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+ExecStart=/home/pi/mpd/radio.exe
+
+[Install]
+WantedBy=multi-user.target
+
