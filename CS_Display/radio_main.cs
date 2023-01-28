@@ -4,12 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.IO;
 using jonas;
 using LcdDisplay;
 
 namespace Display2
 {
-    class radio_main
+    public partial class radio_main
     {
         #region variables
 
@@ -17,18 +18,23 @@ namespace Display2
 
         List<string> m3uFiles = new List<string>();
         int current_m3uIdx = 0;
-        string current_m3uFile = "";
+        string current_m3u_name = "";
 
         List<station> stations = new List<station>();
         int current_station = 0;
         int next_station = 0;
 
-        public AudioDeviceClass current_device = new AudioDeviceClass("hifiberry",  "udef ", "1", "HifiBerry");
+        public AudioDeviceClass current_device = new AudioDeviceClass("hifiberry",  "udef ",  "HifiBerry");
 
         List<AudioDeviceClass>  btDevices = new List<AudioDeviceClass>();
-        public AudioDeviceClass device_holz = new AudioDeviceClass("HolzRadio", "/home/pi/mpd/holz", "5", "FY-R919 - A2DP");
-        public AudioDeviceClass device_bose = new AudioDeviceClass("bose", "/home/pi/mpd/bose", "5", "Bose Mini II SoundLin - A2DP");
-        public AudioDeviceClass disconnect  = new AudioDeviceClass("disconnect", "" , "5", "");
+        public AudioDeviceClass device_holz = new AudioDeviceClass("HolzRadio", "/home/pi/mpd/holz", "FY-R919 - A2DP");
+        public AudioDeviceClass device_bose = new AudioDeviceClass("bose", "/home/pi/mpd/bose", "Bose Mini II SoundLin - A2DP");
+        public AudioDeviceClass device_airpods = new AudioDeviceClass("airpods", "/home/pi/mpd/airpods",  "Airpods");
+        public AudioDeviceClass device_wch500 = new AudioDeviceClass("Sony wch500 in Blau", "wch500", "WH-CH500 - A2DP");
+
+        public AudioDeviceClass disconnect  = new AudioDeviceClass("disconnect", "" ,  "");
+
+        string current_device_name = "";
 
         int btDevice = 0;
         int next_btDevice = 0;
@@ -43,7 +49,7 @@ namespace Display2
         int current_mode = 0;
 
         int volume = 85;
-
+        Thread timer;
         DateTime now = new DateTime();
 
         #endregion
@@ -63,76 +69,66 @@ namespace Display2
                 try
                 {
                     Thread.Sleep(7500);
-                    if (current_mode == application_mode.normal)
+                    display_inifile();
+
+                    if (current_mode == application_mode.stopped)
                     {
-                        output = excecute("mpc", "current");
-                        if (output != null)
-                        {
-                            string[] lines;
-                            lines = output[0].Split(':');
-                            log("Split count:" + lines.Length);
-
-
-                            if (lines[0].Length > 16)
-                            {
-                                text = lines[0].Substring(0, 15);
-                            }
-                            else text = lines[0];
-
-                            Display.Clear();
-                            Display.Write(text);
-
-                            if (lines[1].Length > 16)
-                            {
-                                text = lines[1].Substring(0, 15);
-                            }
-                            else text = lines[1];
-
-                            Display.Line2();
-                            Display.Write(text);
-                        }
+                        Display.Clear();
+                        display(0, "Select <play>");
+                        Display.Line2();
+                        display(2, "to continue");
+                        continue;
                     }
+
+                    if(current_mode != application_mode.normal)
+                    {
+                       continue;
+                    }
+
+                    output = excecute("mpc", "current");
+                    logList(output);
+
+                    if (output.Count() > 0)
+                    {
+                        string[] lines;
+                        lines = output[0].Split(':');
+                        log("Split count:" + lines.Length);
+
+
+                        if (lines[0].Length > 16)
+                        {
+                            text = lines[0].Substring(0, 15);
+                        }
+                        else text = lines[0];
+
+                        Display.Clear();
+                        display(0, text);
+
+                        if (lines[1].Length > 16)
+                        {
+                            text = lines[1].Substring(0, 15);
+                        }
+                        else text = lines[1];
+
+                        display(2, text);
+                    }
+                    Thread.Sleep(7500);
                 }
                 catch (Exception ex)
                 {
-                    log(ex.Message);
+                    log("timer : "+ ex.Message);
                 }
             }
         }
 
-        /// <summary>
-        /// write to log file and console and add timestamp
-        /// </summary>
-        /// <param name="text"></param>
-        public void log(string text)
+
+        public void hello()
         {
-            now = DateTime.Now;
-            Console.WriteLine(now.ToLocalTime() + " " + text);
-            Logger.writeline(now.ToLocalTime() + " " + text);
-        }
-
-        public void SaveSettings()
-
-        {
-            Display2.Properties.Settings.Default.Volume = volume;
-            Display2.Properties.Settings.Default.Station_Number = current_station;
-            Display2.Properties.Settings.Default.btDevice = current_device.name;
-            Display2.Properties.Settings.Default.Playlist = current_m3uFile;
-
-        }
-
-        public void LoadSettings()
-
-        {
-            volume = Display2.Properties.Settings.Default.Volume;
-            current_station = Display2.Properties.Settings.Default.Station_Number;
-            current_m3uFile = Display2.Properties.Settings.Default.Playlist;
-            //current_device = Display2.Properties.Settings.Default.btDevice;
-
-            log("Setting Volume = " + volume);
-            log("Setting Station Number = " + current_station);
-            log("Setting M3U file = " + current_m3uFile);
-
+            LcdDisplay.Display.lcd_init();
+            Display.White();
+            display(0, "MPD Radio ");
+            display(2, "created 01/2023");
+            log("******** HELLO ********");
         }
 
         /// <summary>
@@ -140,21 +136,38 @@ namespace Display2
         /// </summary>
         public void init()
         {
-            LoadSettings();
-
             log(" radio start and init");
             log("Program init");
-            LcdDisplay.Display.lcd_init();
-            Display.White();
-            Display.Write("MPD Radio ");
-            Display.Line2();
-            Display.Write("created 01/2023");
 
-            kBoard = new keyboard();
-            kBoard.OnKeyEvent += new keyboard.OnKeyEventHandler(OnKeyPressed);
-            kBoard.start();
+            Display.mpc_init();
+            Display.lcd_init();
 
-            current_mode = application_mode.normal;
+            hello();
+
+            timer = new Thread(timer_thread);
+            timer.Start();
+
+            btDevices.Add(device_holz);
+            btDevices.Add(device_bose);
+            btDevices.Add(device_wch500);
+            btDevices.Add(device_airpods);
+            btDevices.Add(disconnect);
+
+            LoadSettings();
+
+            log("Number of BT devices : " + btDevices.Count());
+            log("current device name " + current_device.name);
+
+            foreach (AudioDeviceClass d in btDevices)
+            {
+                log("availabe device " + d.name);
+
+                if(d.name == current_device_name)
+                {
+                    log("select current device = " + d.name);
+                    current_device = d;
+                }
+            }
 
             getRadioStations();
             log("Number of Stations  : " + stations.Count());
@@ -162,22 +175,39 @@ namespace Display2
             getM3Ufiles();
             log("Number of M3U files : " + m3uFiles.Count());
 
-            Thread timer = new Thread(timer_thread);
-            timer.Start();
+            output = excecute("amixer", "-D bluealsa scontrols");
+            logList(output);
 
-            btDevices.Add(device_holz);
-            btDevices.Add(device_bose);
-            btDevices.Add(disconnect);
-            log("Number of BT devices : " + btDevices.Count());
+            log("Check for connected devices");
+            foreach(string s in output)
+            {
+                if (s.Contains("Bose"))
+                {
+                    log("BOSE is connected ");
+                    current_device = device_bose;
+                }
+            }
+            log("check done");
 
-            //btDisconnectAll();
-
-            current_device = btDevices[btDevice];
-            btConnect(current_device);
+            if (current_mode != application_mode.stopped)
+            {
+                log("**************************************************");
+                log("init : loading last playlist and play last station");
+                btConnect(current_device);
+                output = excecute("mpc", " stop");
+                output = excecute("mpc", " clear");
+                output = excecute("mpc", " load " + m3uFiles[current_m3uIdx]);
+                output = excecute("mpc", " play " + current_station);
+                setVolume(volume);
+                log("**************************************************");
+            }
             Thread.Sleep(1500);
 
-            changeToMode(application_mode.normal);
-            setVolume(volume);
+            kBoard = new keyboard();
+            kBoard.OnKeyEvent += new keyboard.OnKeyEventHandler(OnKeyPressed);
+            kBoard.start();
+
+
         }
 
         /// <summary>
@@ -189,8 +219,9 @@ namespace Display2
         public List<string> excecute (string cmd, string args)
         {
             List<string> output = new List<string>();
+            log("execute:" + cmd + " " + args);
             output = jonas.Process_util.process_exec_output(cmd, args);
-            //if (output!=null) logList(output);
+            if (output!=null) logList(output);
             return (output);
         }
 
@@ -203,6 +234,7 @@ namespace Display2
 
             log("Mode changed to  : " + mode.ToString());
             current_mode = mode;
+            SaveSettings();
             log("Current Mode     :  " + current_mode);
         }
 
@@ -251,9 +283,12 @@ namespace Display2
             }
             else
             {
-                log(" No Stations. Now loading default playlist ...");
-                output = excecute("mpc", "load Deutschland");
-                getRadioStations();
+                //log(" No Stations. Now loading default playlist ...");
+                //output = excecute("mpc","clear");
+                //output = excecute("mpc", "load Deutschland");
+                //getRadioStations();
+
+                log(" No Stations. Please load playlist ...");
             }
         }
 
@@ -273,28 +308,10 @@ namespace Display2
         public void application_close()
         {
             Display.Clear();
-            Display.Write("Bye Bye ...");
+            display(0, "Bye Bye ...");
             log("Bye Bye ...");
         }
 
-        /// <summary>
-        /// write all strings in output to console
-        /// </summary>
-        /// <param name="output"></param>
-        public void logList(List<string> output)
-        {
-            if(output == null)
-            {
-                log("WARNING: output is null");
-                return;
-            }
-
-            foreach (string s in output)
-            {
-                log(s);
-            }
-            log("#");
-        }
 
         /// <summary>
         /// restart bluetooth and mpd service and re-connects to bluetooth speaker
@@ -340,10 +357,11 @@ namespace Display2
         public void btConnect(AudioDeviceClass dev)
         {
             log(" btConnect to " + dev.name);
+            timer.Suspend();
             output = excecute("mpc", " stop");
             output = excecute(dev.enable, " 1");
             Thread.Sleep(500);
-            output = excecute("mpc", " play");
+            timer.Resume();
         }
 
         /// <summary>
@@ -364,9 +382,11 @@ namespace Display2
         /// <param name="volume"></param>
         public void setVolume(int volume)
         {
+            
             log(" Set Volume " + volume);
             output = excecute("amixer", " -D bluealsa sset '" + current_device.bluealsa_name + "' " + volume.ToString() + "%");
             output = excecute("amixer", "sset Headphone " + volume.ToString() + "%");
+            SaveSettings();
         }
 
         /// <summary>
@@ -385,9 +405,9 @@ namespace Display2
             {
                 Display.Clear();
                 Display.White();
+                timer.Suspend();
                 key = e.keycode;
-                //Display.Write("Key:" + key.ToString("X2"));
-                //Display.Line2();
+                log("event key pressed: " + key);
 
                 try
                 {
@@ -395,82 +415,80 @@ namespace Display2
                     {
                         case keys.LEFT:
                             {
-                                if (current_mode == application_mode.normal)
+                                if (current_mode == application_mode.normal || current_mode == application_mode.stopped)
                                 {
                                     if (volume > 50) volume = volume - 5;
-                                    Display.Write("VOL-- " + volume);
+                                    output = excecute("mpc", "play " + (current_station + 1).ToString());
+                                    display(0,"VOL-- " + volume);
                                     setVolume(volume);
                                 }
 
                                 if (current_mode == application_mode.menu1)
                                 {
-                                    Display.Write("Stop");
+                                    display(0, "Stop");
                                     output = excecute("mpc", "stop");
-                                    changeToMode(application_mode.normal);
+                                    changeToMode(application_mode.stopped);
                                 }
 
                                 if (current_mode == application_mode.menu2)
                                 {
-                                    Display.Write("RESTART MPD");
+                                    display(0, "RESTART MPD");
                                     mpd_restart();
                                     current_mode = application_mode.normal;
                                     LcdDisplay.Display.Clear();
-                                    Display.Write("RESTART DONE");
+                                    display(0, "RESTART DONE");
                                 }
+                                timer.Resume();
                                 break;
                             }
 
                         case keys.RIGHT:
                             {
 
-                                if (current_mode == application_mode.normal)
+                                if (current_mode == application_mode.normal || current_mode == application_mode.stopped)
                                 {
                                     if (volume < 100) volume = volume + 5;
-                                    Display.Write("VOL++ " + volume);
+                                    output = excecute("mpc", "play " + (current_station + 1).ToString());
+                                    display(0, "VOL++ " + volume);
                                     setVolume(volume);
-                                    break;
                                 }
 
-                                if (current_mode == application_mode.select_station)
+                                if (current_mode == application_mode.select_station || current_mode == application_mode.stopped)
                                 {
                                     current_station = next_station;
-                                    Display.Write("PLAY " + current_station);
+                                    display(0, "PLAY " + current_station);
                                     output = excecute("mpc", " stop ");
                                     Thread.Sleep(250);
                                     output = excecute("mpc", "play " + (current_station+1).ToString());
                                     Display.Clear();
-                                    if (output != null) Display.Write(output[0]);
+                                    if (output != null) display(0, output[0]);
                                     SaveSettings();
                                     changeToMode(application_mode.normal);
-                                    break;
                                 }
 
-                                if (current_mode == application_mode.menu1)
+                                if (current_mode == application_mode.menu1 || current_mode == application_mode.stopped)
                                 {
-                                    Display.Write("Play");
+                                    display(0, "Play");
                                     output = excecute("mpc", "play");
                                     changeToMode(application_mode.normal);
                                 }
 
                                 if (current_mode == application_mode.menu2)
                                 {
-                                    Display.Write("Load M3U file ");
-                                    Display.Line2();
-                                    Display.Write(m3uFiles[current_m3uIdx]);
+                                    display(0, "Load M3U file ");
+                                    display(2, m3uFiles[current_m3uIdx]);
                                     output = excecute("mpc", " stop");
                                     output = excecute("mpc", " clear");
                                     output = excecute("mpc", " load " + m3uFiles[current_m3uIdx]);
                                     getRadioStations();
                                     SaveSettings();
                                     changeToMode(application_mode.normal);
-                                    break;
                                 }
 
                                 if (current_mode == application_mode.menu3)
                                 {
-                                    Display.Write("Connect Device ");
-                                    Display.Line2();
-                                    Display.Write(btDevices[next_btDevice].name);
+                                    display(0, "Connect Device ");
+                                    display(2, btDevices[next_btDevice].name);
 
                                     if (btDevices[next_btDevice].name == "Disconnect")
                                     {
@@ -483,9 +501,9 @@ namespace Display2
                                         btConnect(current_device);
                                         changeToMode(application_mode.normal);
                                     }
-                                    break;
-                                }
 
+                                }
+                                timer.Resume();
                                 break;
                             }
 
@@ -496,8 +514,7 @@ namespace Display2
                                     next_station--;
                                     if (next_station < 0) next_station = stations.Count() - 1;
                                     changeToMode(application_mode.select_station);
-                                    Display.Write(">"+stations[next_station].name);
-                                    break;
+                                    display(0, ">" +stations[next_station].name);
                                 }
 
                                 if (current_mode == application_mode.menu2)
@@ -505,10 +522,8 @@ namespace Display2
                                     current_m3uIdx--;
                                     if (current_m3uIdx < 0) current_m3uIdx = m3uFiles.Count() - 1;
                                     log("current M3U:" + current_m3uIdx + " " + m3uFiles[current_m3uIdx]);
-                                    Display.Write("M3U:" + m3uFiles[current_m3uIdx]);
-                                    Display.Line2();
-                                    Display.Write("> select M3U");
-                                    break;
+                                    display(0, "M3U:" + m3uFiles[current_m3uIdx]);
+                                    display(2, "> select M3U");
                                 }
 
                                 if (current_mode == application_mode.menu3)
@@ -516,12 +531,10 @@ namespace Display2
                                     next_btDevice--;
                                     if (next_btDevice < 0) next_btDevice = btDevices.Count() - 1;
                                     log("next BT device:" + btDevices[next_btDevice].name);
-                                    Display.Write(btDevices[next_btDevice].name);
-                                    Display.Line2();
-                                    Display.Write("> select device");
-                                    break;
+                                    display(0, btDevices[next_btDevice].name);
+                                    display(2, "> select device");
                                 }
-
+                                timer.Resume();
                                 break;
                             }
 
@@ -533,9 +546,7 @@ namespace Display2
                                     if (next_station > stations.Count() - 1) next_station = 0;
                                     log("Station:" + next_station + " " + stations[next_station].name);
                                     current_mode = application_mode.select_station;
-                                    Display.Write(">"+stations[next_station].name);
-
-                                    break;
+                                    display(0, ">" +stations[next_station].name);
                                 }
 
                                 if (current_mode == application_mode.menu2)
@@ -543,10 +554,8 @@ namespace Display2
                                     current_m3uIdx++;
                                     if (current_m3uIdx > m3uFiles.Count() - 1) current_m3uIdx = 0;
                                     log("current M3U:" + current_m3uIdx + " " + m3uFiles[current_m3uIdx]);
-                                    Display.Write("M3U:" + m3uFiles[current_m3uIdx]);
-                                    Display.Line2();
-                                    Display.Write("> select M3U");
-                                    break;
+                                    display(0, "M3U:" + m3uFiles[current_m3uIdx]);
+                                    display(2, "> select M3U");
                                 }
 
                                 if (current_mode == application_mode.menu3)
@@ -554,11 +563,11 @@ namespace Display2
                                     next_btDevice++;
                                     if (next_btDevice > btDevices.Count() - 1) next_btDevice = 0;
                                     log("next BT device:" + btDevices[next_btDevice].name);
-                                    Display.Write(btDevices[next_btDevice].name);
-                                    Display.Line2();
-                                    Display.Write("> select device");
-                                    break;
+                                    display(0, btDevices[next_btDevice].name);
+                                    display(2, "> select device");
+
                                 }
+                                timer.Resume();
                                 break;
                             }
 
@@ -568,31 +577,29 @@ namespace Display2
                                 getRadioStations();
                                 getM3Ufiles();
 
-                                if (current_mode == application_mode.normal)
+                                if (current_mode == application_mode.normal || current_mode == application_mode.stopped)
                                 {
                                     changeToMode(application_mode.menu1);
                                     Display.Red();
-                                    Display.Write("MENU I");
-                                    Display.Line2();
-                                    Display.Write("STOP <> PLAY");
+                                    display(0, "MENU I");
+                                    display(2, "STOP <> PLAY");
                                     break;
                                 }
 
-                                if (current_mode == application_mode.select_station)
+                                if (current_mode == application_mode.select_station || current_mode == application_mode.stopped)
                                 {
                                     changeToMode(application_mode.normal);
                                     Display.Red();
-                                    Display.Write("MENU EXIT");
+                                    display(0, "MENU EXIT");
                                     break;
                                 }
 
-                                if (current_mode == application_mode.menu1)
+                                if (current_mode == application_mode.menu1 || current_mode == application_mode.stopped)
                                 {
                                     changeToMode(application_mode.menu2);
                                     Display.Red();
-                                    Display.Write("MENU II: L=restart MPD");
-                                    Display.Line2();
-                                    Display.Write("Up/Dwn: select M3U file");
+                                    display(0, "MENU II: L=restart MPD");
+                                    display(2, "Up/Dwn: select M3U file");
                                     break;
                                 }
 
@@ -600,21 +607,18 @@ namespace Display2
                                 {
                                     changeToMode(application_mode.menu3);
                                     Display.Red();
-                                    Display.Write("MENU III: Device");
-                                    Display.Line2();
-                                    Display.Write(current_device.name);
+                                    display(0, "MENU III: Device");
+                                    display(2, current_device.name);
                                     break;
                                 }
 
                                 if (current_mode == application_mode.menu3)
                                 {
                                     changeToMode(application_mode.normal);
-                                    Display.Red();
-                                    Display.Write("MENU EXIT");
-                                    break;
+                                    hello();
+                                    timer.Resume();
                                 }
-
-                                break;
+                            break;
                             }
                     }
                 }
@@ -623,7 +627,7 @@ namespace Display2
                 {
                     Display.Magenta();
                     log("Exception on Key press : \n\r" + ex.Message);
- //                   Display.Write("Sorry, exception");
+                    display(0, "Sorry, exception");
                 }
             }
 
@@ -641,17 +645,15 @@ namespace Display2
         /// the filename of a script on raspberry to enable the device
         /// </summary>
         public string enable = "";
-        public string output = "";
         /// <summary>
         /// device name for bluealsa 
         /// </summary>
         public string bluealsa_name = "";
 
-        public AudioDeviceClass(string name, string enable, string output, string bluealsa_name)
+        public AudioDeviceClass(string name, string enable, string bluealsa_name)
         {
             this.name = name;
             this.enable = enable;
-            this.output = output;
             this.bluealsa_name = bluealsa_name;
         }
 
@@ -682,6 +684,7 @@ namespace Display2
         public const int menu3 = 3;
         public const int select_station = 4;
         public const int m3ufiles = 5;
+        public const int stopped = 6;
     }
 
 }

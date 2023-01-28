@@ -26,12 +26,12 @@ namespace Display2.Properties {
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("Holz")]
-        public string btDevice {
+        public string btDeviceName {
             get {
-                return ((string)(this["btDevice"]));
+                return ((string)(this["btDeviceName"]));
             }
             set {
-                this["btDevice"] = value;
+                this["btDeviceName"] = value;
             }
         }
         
@@ -68,6 +68,18 @@ namespace Display2.Properties {
             }
             set {
                 this["Playlist"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int mode {
+            get {
+                return ((int)(this["mode"]));
+            }
+            set {
+                this["mode"] = value;
             }
         }
     }

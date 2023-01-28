@@ -42,6 +42,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="helper.cs" />
     <Compile Include="jonas.cs" />
     <Compile Include="keyboard.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
