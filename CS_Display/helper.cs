@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 using System.IO;
 using LcdDisplay;
 using jonas;
@@ -67,10 +67,16 @@ namespace Display2
                     log(" init volume=" + volume);
                 }
 
-                if (line.Contains("StationNumber"))
+                if (line.Contains("StationIndex"))
                 {
-                    current_station = getWord2asInt(line);
-                    log(" init current_station=" + current_station);
+                    current_station_index = getWord2asInt(line);
+                    log(" init current_station=" + current_station_index);
+                }
+
+                if (line.Contains("StationNumber")) // obsolete soon
+                {
+                    current_station_index = getWord2asInt(line);
+                    log(" init current_station=" + current_station_index);
                 }
 
                 if (line.Contains("PlaylistName"))
@@ -110,7 +116,7 @@ namespace Display2
             string log_file_name = "/home/pi/mpd/radio.ini";
             StreamWriter re = new StreamWriter(log_file_name);
             re.WriteLine("Volume:" + volume);
-            re.WriteLine("StationNumber:" + current_station);
+            re.WriteLine("StationIndex:" + current_station_index);
             re.WriteLine("PlaylistName:" + m3uFiles[current_m3uIdx]);
             re.WriteLine("PlaylistIndex:" + current_m3uIdx);
             re.WriteLine("DeviceName:" + current_device.name);
@@ -131,6 +137,18 @@ namespace Display2
             logList(output);
         }
 
+ 
+        /// <summary>
+        /// Reset Display
+        /// </summary>
+        public void displayReset()
+        {
+            Display.mpc_init();
+            Thread.Sleep(50);
+            Display.lcd_init();
+            Thread.Sleep(50);
+        }
+        
         /// <summary>
         /// display text
         /// </summary>
