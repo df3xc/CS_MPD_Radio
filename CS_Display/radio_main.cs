@@ -55,7 +55,7 @@ namespace Display2
         #endregion
 
         /// <summary>
-        /// Display station name and song title frequently
+        /// Timer to display station name and song title frequently
         /// </summary>
         public void timer_thread()
 
@@ -83,7 +83,7 @@ namespace Display2
                         continue;
                     }
 
-                    if(current_mode != application_mode.normal)
+                    if(current_mode != application_mode.playing)
                     {
                        continue;
                     }
@@ -98,9 +98,9 @@ namespace Display2
                         log("Split count:" + lines.Length);
 
 
-                        if (lines[0].Length > 12)
+                        if (lines[0].Length > 16)
                         {
-                            text = lines[0].Substring(0, 12);
+                            text = lines[0].Substring(0, 16);
                         }
                         else text = lines[0];
 
@@ -108,9 +108,9 @@ namespace Display2
 
                         lines[1] = lines[1].TrimStart(' ');
 
-                        if (lines[1].Length > 14)
+                        if (lines[1].Length > 16)
                         {
-                            text = lines[1].Substring(0, 14);
+                            text = lines[1].Substring(0, 16);
                         }
                         else text = lines[1];
 
@@ -239,10 +239,10 @@ namespace Display2
 
             if (e.keycode != 0x0)
             {
-                //displayReset();
-                //LcdDisplay.Display.lcd_init();
-                Display.Clear();
                 timer.Suspend();
+                Display.Clear();
+                Display.White();
+
                 key = e.keycode;
                 log("event key pressed: " + key);
 
@@ -252,25 +252,25 @@ namespace Display2
                     {
                         case keys.LEFT:
                             {
-                                if (current_mode == application_mode.normal || current_mode == application_mode.stopped)
+                                if (current_mode == application_mode.playing || current_mode == application_mode.stopped)
                                 {
                                     if (volume > 50) volume = volume - 5;
                                     display(0, "VOL-- " + volume);
                                     setVolume(volume);
                                 }
 
-                                if (current_mode == application_mode.menu1)
+                                if (current_mode == application_mode.play_stop)
                                 {
                                     display(0, "Stop");
                                     output = excecute("mpc", "stop");
                                     changeToMode(application_mode.stopped);
                                 }
 
-                                if (current_mode == application_mode.menu2)
+                                if (current_mode == application_mode.select_playlist)
                                 {
                                     display(0, "RESTART MPD");
                                     mpd_restart();
-                                    changeToMode(application_mode.normal);
+                                    changeToMode(application_mode.playing);
                                     LcdDisplay.Display.Clear();
                                     display(0, "RESTART DONE");
                                 }
@@ -281,7 +281,7 @@ namespace Display2
                         case keys.RIGHT:
                             {
 
-                                if (current_mode == application_mode.normal || current_mode == application_mode.stopped)
+                                if (current_mode == application_mode.playing || current_mode == application_mode.stopped)
                                 {
                                     if (volume < 100) volume = volume + 5;
                                     display(0, "VOL++ " + volume);
@@ -299,17 +299,17 @@ namespace Display2
                                     //Display.Clear();
                                     //if (output != null) display(0, output[0]);
                                     SaveSettings();
-                                    changeToMode(application_mode.normal);
+                                    changeToMode(application_mode.playing);
                                 }
 
-                                if (current_mode == application_mode.menu1 || current_mode == application_mode.stopped)
+                                if (current_mode == application_mode.play_stop || current_mode == application_mode.stopped)
                                 {
                                     display(0, "Play");
                                     output = excecute("mpc", "play");
-                                    changeToMode(application_mode.normal);
+                                    changeToMode(application_mode.playing);
                                 }
 
-                                if (current_mode == application_mode.menu2)
+                                if (current_mode == application_mode.select_playlist)
                                 {
                                     display(0, "Load M3U file ");
                                     display(2, m3uFiles[current_m3uIdx]);
@@ -318,10 +318,10 @@ namespace Display2
                                     output = excecute("mpc", " load " + m3uFiles[current_m3uIdx]);
                                     getRadioStations();
                                     SaveSettings();
-                                    changeToMode(application_mode.normal);
+                                    changeToMode(application_mode.playing);
                                 }
 
-                                if (current_mode == application_mode.menu3)
+                                if (current_mode == application_mode.select_BT_device)
                                 {
                                     display(0, "Connect Device ");
                                     display(2, btDevices[next_btDevice].name);
@@ -335,7 +335,7 @@ namespace Display2
                                         btDisConnect(current_device);
                                         current_device = btDevices[next_btDevice];
                                         btConnect(current_device);
-                                        changeToMode(application_mode.normal);
+                                        changeToMode(application_mode.playing);
                                     }
 
                                 }
@@ -345,7 +345,7 @@ namespace Display2
 
                         case keys.UP:
                             {
-                                if (current_mode == application_mode.normal || current_mode == application_mode.select_station)
+                                if (current_mode == application_mode.playing || current_mode == application_mode.select_station)
                                 {
                                     next_station_index--;
                                     if (next_station_index < 1) next_station_index = stations.Count()-1;
@@ -354,7 +354,7 @@ namespace Display2
                                     display(0, ">" + stations[next_station_index].name);
                                 }
 
-                                if (current_mode == application_mode.menu2)
+                                if (current_mode == application_mode.select_playlist)
                                 {
                                     current_m3uIdx--;
                                     if (current_m3uIdx < 0) current_m3uIdx = m3uFiles.Count() - 1;
@@ -363,7 +363,7 @@ namespace Display2
                                     display(2, "> select M3U");
                                 }
 
-                                if (current_mode == application_mode.menu3)
+                                if (current_mode == application_mode.select_BT_device)
                                 {
                                     next_btDevice--;
                                     if (next_btDevice < 0) next_btDevice = btDevices.Count() - 1;
@@ -377,7 +377,7 @@ namespace Display2
 
                         case keys.DOWN:
                             {
-                                if (current_mode == application_mode.normal || current_mode == application_mode.select_station)
+                                if (current_mode == application_mode.playing || current_mode == application_mode.select_station)
                                 {
                                     next_station_index++;
                                     if (next_station_index > stations.Count()-1) next_station_index = 1;
@@ -386,7 +386,7 @@ namespace Display2
                                     display(0, ">" + stations[next_station_index].name);
                                 }
 
-                                if (current_mode == application_mode.menu2)
+                                if (current_mode == application_mode.select_playlist)
                                 {
                                     current_m3uIdx++;
                                     if (current_m3uIdx > m3uFiles.Count() - 1) current_m3uIdx = 0;
@@ -395,7 +395,7 @@ namespace Display2
                                     display(2, "> select M3U");
                                 }
 
-                                if (current_mode == application_mode.menu3)
+                                if (current_mode == application_mode.select_BT_device)
                                 {
                                     next_btDevice++;
                                     if (next_btDevice > btDevices.Count() - 1) next_btDevice = 0;
@@ -414,9 +414,9 @@ namespace Display2
                                 //getRadioStations();
                                 //getM3Ufiles();
 
-                                if (current_mode == application_mode.normal || current_mode == application_mode.stopped)
+                                if (current_mode == application_mode.playing || current_mode == application_mode.stopped)
                                 {
-                                    changeToMode(application_mode.menu1);
+                                    changeToMode(application_mode.play_stop);
                                     display(0, "MENU I");
                                     display(2, "STOP <> PLAY");
                                     break;
@@ -424,33 +424,33 @@ namespace Display2
 
                                 if (current_mode == application_mode.select_station || current_mode == application_mode.stopped)
                                 {
-                                    changeToMode(application_mode.normal);
+                                    changeToMode(application_mode.playing);
                                     display(0, "MENU EXIT");
                                     break;
                                 }
 
-                                if (current_mode == application_mode.menu1 || current_mode == application_mode.stopped)
+                                if (current_mode == application_mode.play_stop || current_mode == application_mode.stopped)
                                 {
-                                    changeToMode(application_mode.menu2);
+                                    changeToMode(application_mode.select_playlist);
                                     display(0, "MENU II: L=restart MPD");
                                     display(2, "Up/Dwn: select M3U file");
                                     break;
                                 }
 
-                                if (current_mode == application_mode.menu2)
+                                if (current_mode == application_mode.select_playlist)
                                 {
-                                    changeToMode(application_mode.menu3);
+                                    changeToMode(application_mode.select_BT_device);
                                     display(0, "MENU III: Device");
                                     display(2, current_device.name);
                                     break;
                                 }
 
-                                if (current_mode == application_mode.menu3)
+                                if (current_mode == application_mode.select_BT_device)
                                 {
-                                    changeToMode(application_mode.normal);
+                                    changeToMode(application_mode.playing);
                                     hello();
-                                    timer.Resume();
                                 }
+                                timer.Resume();
                                 break;
                             }
                     }
@@ -628,14 +628,6 @@ namespace Display2
 
             btConnect(current_device);
 
-            //excecute(current_device.enable, " 0");
-            //Thread.Sleep(1500);
-
-            //output = excecute(current_device.enable, " 1");
-            //Thread.Sleep(2500);
-
-            //output = excecute(current_device.enable, " 1");
-            //Thread.Sleep(2500);
             log("****************** MPD RESTART DONE *******************");
         }
 
@@ -712,7 +704,6 @@ namespace Display2
         /// <param name="volume"></param>
         public void setVolume(int volume)
         {
-            
             log(" Set Volume " + volume);
             output = excecute("amixer", " -D bluealsa sset '" + current_device.bluealsa_name + "' " + volume.ToString() + "%");
             output = excecute("amixer", "sset Headphone " + volume.ToString() + "%");
@@ -771,10 +762,10 @@ namespace Display2
     /// </summary>
     public static class application_mode
     {
-        public const int normal = 0;
-        public const int menu1 = 1;
-        public const int menu2 = 2;
-        public const int menu3 = 3;
+        public const int playing = 0;
+        public const int play_stop = 1;
+        public const int select_playlist = 2;
+        public const int select_BT_device = 3;
         public const int select_station = 4;
         public const int m3ufiles = 5;
         public const int stopped = 6;
