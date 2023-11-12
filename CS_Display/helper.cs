@@ -52,59 +52,63 @@ namespace Display2
         public void LoadSettings()
 
         {
+            if (File.Exists("/home/pi/mpd/radio.ini"))
+            { 
+
             // Read a text file line by line.  
             string[] lines = File.ReadAllLines("/home/pi/mpd/radio.ini");
 
-            log("****** LOAD SETTINGS ******");
+            log("*********** LOAD SETTINGS ***********");
 
-            foreach (string line in lines)
-            {
-                //log("ini file:" + line);
-
-                if (line.Contains("Volume"))
+                foreach (string line in lines)
                 {
-                    volume = getWord2asInt(line);
-                    log(" init volume=" + volume);
-                }
+                    //log("ini file:" + line);
 
-                if (line.Contains("StationIndex"))
-                {
-                    current_station_index = getWord2asInt(line);
-                    log(" init current_station=" + current_station_index);
-                }
+                    if (line.Contains("Volume"))
+                    {
+                        volume = getWord2asInt(line);
+                        log(" init volume=" + volume);
+                    }
 
-                if (line.Contains("StationNumber")) // obsolete soon
-                {
-                    current_station_index = getWord2asInt(line);
-                    log(" init current_station=" + current_station_index);
-                }
+                    if (line.Contains("StationIndex"))
+                    {
+                        current_station_index = getWord2asInt(line);
+                        log(" init current_station=" + current_station_index);
+                    }
 
-                if (line.Contains("PlaylistName"))
-                {
-                    current_m3u_name = getWord2asString(line);
-                    log(" init current_m3u_name=" + current_m3u_name);
-                }
+                    if (line.Contains("StationNumber")) // obsolete soon
+                    {
+                        current_station_index = getWord2asInt(line);
+                        log(" init current_station=" + current_station_index);
+                    }
 
-                if (line.Contains("PlaylistIndex"))
-                {
-                    current_m3uIdx = getWord2asInt(line);
-                    log(" init current_m3uIdx=" + current_m3uIdx);
-                }
+                    if (line.Contains("PlaylistName"))
+                    {
+                        current_m3u_name = getWord2asString(line);
+                        log(" init current_m3u_name=" + current_m3u_name);
+                    }
 
-                if (line.Contains("DeviceName"))
-                {
-                    current_device_name = getWord2asString(line);
-                    log(" init current_device_name=" + current_device_name);
-                }
+                    if (line.Contains("PlaylistIndex"))
+                    {
+                        current_m3uIdx = getWord2asInt(line);
+                        log(" init current_m3uIdx=" + current_m3uIdx);
+                    }
 
-                if (line.Contains("Mode"))
-                {
-                    current_mode = getWord2asInt(line);
-                    log(" init current_mode=" + current_mode);
-                }
+                    if (line.Contains("DeviceName"))
+                    {
+                        current_device_name = getWord2asString(line);
+                        log(" init current_device_name=" + current_device_name);
+                    }
 
+                    if (line.Contains("Mode"))
+                    {
+                        current_mode = getWord2asInt(line);
+                        log(" init current_mode=" + current_mode);
+                    }
+                }
+            log("******** LOAD SETTINGS DONE ********");
             }
-            log("*** LOAD SETTINGS DONE ***");
+
         }
 
         /// <summary>
@@ -156,7 +160,9 @@ namespace Display2
         /// <param name="text"></param>
         public void display(int line, string text)
         {
-            log(" Display : " + text);
+            log(" -> Display : " + text);
+            //Display.Clear();
+            Thread.Sleep(350);
             if (line == 2)
             {
                 Display.Line2();

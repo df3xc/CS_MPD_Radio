@@ -21,18 +21,16 @@ namespace Display2
         string current_m3u_name = "";
 
         List<station> stations = new List<station>();
-        int current_station_index = 0;
+        int current_station_index = 1;
         int next_station_index = 0;
 
         public AudioDeviceClass current_device = new AudioDeviceClass("hifiberry",  "udef ",  "HifiBerry", "hifiberry");
 
         List<AudioDeviceClass>  btDevices = new List<AudioDeviceClass>();
-        public AudioDeviceClass device_holz = new AudioDeviceClass("HolzRadio", "/home/pi/mpd/holz", "FY-R919 - A2DP", "0A:A5:88:33:28:94");
-        public AudioDeviceClass device_bose = new AudioDeviceClass("bose", "/home/pi/mpd/bose", "Bose Mini II SoundLin - A2DP", "28:11:A5:19:8A:E3");
-        public AudioDeviceClass device_airpods = new AudioDeviceClass("airpods", "/home/pi/mpd/airpods",  "Airpods", " E8:85:4B:6E:48:56");
-        public AudioDeviceClass device_wch500 = new AudioDeviceClass("Sony wch500 in Blau", "wch500", "WH-CH500 - A2DP", "00:18:09:8D:97:6D");
-        public AudioDeviceClass device_wch710 = new AudioDeviceClass("Sony wch710 in Schwarz", "wch710", "WH-CH710N", "74:45:CE:CC:EE:D9");
-
+        public AudioDeviceClass device_holz = new AudioDeviceClass("HolzRadio", "/home/pi/mpd/script/holz", "FY-R919 - A2DP", "0A:A5:88:33:28:94");
+        public AudioDeviceClass device_bose = new AudioDeviceClass("bose", "/home/pi/mpd/script/bose", "Bose Mini II SoundLin - A2DP", "28:11:A5:19:8A:E3");
+        public AudioDeviceClass device_airpods = new AudioDeviceClass("airpods", "/home/pi/mpd/script/airpods",  "Airpods", " E8:85:4B:6E:48:56");
+ 
         public AudioDeviceClass disconnect  = new AudioDeviceClass("disconnect", "" ,  "", "");
 
         string current_device_name = "";
@@ -71,7 +69,8 @@ namespace Display2
                 try
                 {
                     Thread.Sleep(7500);
-                    display_inifile();
+                    //display_inifile();
+                    Display.Clear();
 
                     if (current_mode == application_mode.stopped)
                     {
@@ -99,18 +98,19 @@ namespace Display2
                         log("Split count:" + lines.Length);
 
 
-                        if (lines[0].Length > 16)
+                        if (lines[0].Length > 12)
                         {
-                            text = lines[0].Substring(0, 15);
+                            text = lines[0].Substring(0, 12);
                         }
                         else text = lines[0];
 
-                        displayReset();
                         display(0, text);
 
-                        if (lines[1].Length > 16)
+                        lines[1] = lines[1].TrimStart(' ');
+
+                        if (lines[1].Length > 14)
                         {
-                            text = lines[1].Substring(0, 15);
+                            text = lines[1].Substring(0, 14);
                         }
                         else text = lines[1];
 
@@ -152,11 +152,9 @@ namespace Display2
 
             btDevices.Add(device_holz);
             btDevices.Add(device_bose);
-            btDevices.Add(device_wch500);
-            btDevices.Add(device_wch710);
             btDevices.Add(device_airpods);
             btDevices.Add(disconnect);
-
+            output = excecute("mpc", " load " + "Germany");
             LoadSettings();
 
             log("Number of BT devices : " + btDevices.Count());
@@ -183,28 +181,37 @@ namespace Display2
             logList(output);
 
             check_for_connected_devices();
- 
+
             if (current_mode != application_mode.stopped)
             {
                 log("*******************************************************");
                 log("init : loading last playlist and play last station");
-                if (device_connected == false) btConnect(current_device);
+                //if (device_connected == false) btConnect(current_device);
                 output = excecute("mpc", " stop");
                 logList(output);
-                Thread.Sleep(350);
+                Thread.Sleep(250);
                 output = excecute("mpc", "clear");
                 logList(output);
-                Thread.Sleep(350);
+                Thread.Sleep(250);
+                log("Loading playlist " + current_m3uIdx);
                 output = excecute("mpc", "load " + m3uFiles[current_m3uIdx]);
                 logList(output);
-                Thread.Sleep(550);
-                output = excecute("mpc", "play " + (current_station_index+1).ToString());
-                logList(output);
-                Thread.Sleep(350);
+                Thread.Sleep(250);
+                getRadioStations();
+                Thread.Sleep(250);
+                display(0, "PLAY " + current_station_index);
+                display(2, stations[current_station_index].name);
+
+                if (current_station_index < stations.Count)
+                {                 
+                    output = excecute("mpc", "play " + (current_station_index).ToString());
+                    logList(output);
+                }
+                Thread.Sleep(250);
                 setVolume(volume);
                 log("*******************************************************");
             }
-            Thread.Sleep(1500);
+            Thread.Sleep(500);
             //output = excecute("mpc", " play " + current_station_index + 1);
             //Thread.Sleep(350);
             //setVolume(volume);
@@ -216,6 +223,251 @@ namespace Display2
 
         }
 
+        #region key pressed
+
+        /// <summary>
+        /// handle key pressed event
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void OnKeyPressed(object sender, KeyEventArgs e)
+        {
+            int key;
+            log("Key pressed : " + e.keycode.ToString() + " in mode : " + current_mode);
+            //LcdDisplay.Display.lcd_init();
+            //LcdDisplay.Display.Clear();
+
+            if (e.keycode != 0x0)
+            {
+                //displayReset();
+                //LcdDisplay.Display.lcd_init();
+                Display.Clear();
+                timer.Suspend();
+                key = e.keycode;
+                log("event key pressed: " + key);
+
+                try
+                {
+                    switch (key)
+                    {
+                        case keys.LEFT:
+                            {
+                                if (current_mode == application_mode.normal || current_mode == application_mode.stopped)
+                                {
+                                    if (volume > 50) volume = volume - 5;
+                                    display(0, "VOL-- " + volume);
+                                    setVolume(volume);
+                                }
+
+                                if (current_mode == application_mode.menu1)
+                                {
+                                    display(0, "Stop");
+                                    output = excecute("mpc", "stop");
+                                    changeToMode(application_mode.stopped);
+                                }
+
+                                if (current_mode == application_mode.menu2)
+                                {
+                                    display(0, "RESTART MPD");
+                                    mpd_restart();
+                                    changeToMode(application_mode.normal);
+                                    LcdDisplay.Display.Clear();
+                                    display(0, "RESTART DONE");
+                                }
+                                timer.Resume();
+                                break;
+                            }
+
+                        case keys.RIGHT:
+                            {
+
+                                if (current_mode == application_mode.normal || current_mode == application_mode.stopped)
+                                {
+                                    if (volume < 100) volume = volume + 5;
+                                    display(0, "VOL++ " + volume);
+                                    setVolume(volume);
+                                }
+
+                                if (current_mode == application_mode.select_station || current_mode == application_mode.stopped)
+                                {
+                                    current_station_index = next_station_index;
+                                    display(0, "PLAY " + current_station_index);
+                                    display(2, stations[current_station_index].name);
+                                    output = excecute("mpc", " stop ");
+                                    Thread.Sleep(250);
+                                    output = excecute("mpc", "play " + (current_station_index ).ToString());
+                                    //Display.Clear();
+                                    //if (output != null) display(0, output[0]);
+                                    SaveSettings();
+                                    changeToMode(application_mode.normal);
+                                }
+
+                                if (current_mode == application_mode.menu1 || current_mode == application_mode.stopped)
+                                {
+                                    display(0, "Play");
+                                    output = excecute("mpc", "play");
+                                    changeToMode(application_mode.normal);
+                                }
+
+                                if (current_mode == application_mode.menu2)
+                                {
+                                    display(0, "Load M3U file ");
+                                    display(2, m3uFiles[current_m3uIdx]);
+                                    output = excecute("mpc", " stop");
+                                    output = excecute("mpc", " clear");
+                                    output = excecute("mpc", " load " + m3uFiles[current_m3uIdx]);
+                                    getRadioStations();
+                                    SaveSettings();
+                                    changeToMode(application_mode.normal);
+                                }
+
+                                if (current_mode == application_mode.menu3)
+                                {
+                                    display(0, "Connect Device ");
+                                    display(2, btDevices[next_btDevice].name);
+
+                                    if (btDevices[next_btDevice].name == "Disconnect")
+                                    {
+                                        btDisconnectAll();
+                                    }
+                                    else
+                                    {
+                                        btDisConnect(current_device);
+                                        current_device = btDevices[next_btDevice];
+                                        btConnect(current_device);
+                                        changeToMode(application_mode.normal);
+                                    }
+
+                                }
+                                timer.Resume();
+                                break;
+                            }
+
+                        case keys.UP:
+                            {
+                                if (current_mode == application_mode.normal || current_mode == application_mode.select_station)
+                                {
+                                    next_station_index--;
+                                    if (next_station_index < 1) next_station_index = stations.Count()-1;
+                                    log(" next station index is " + next_station_index);
+                                    changeToMode(application_mode.select_station);
+                                    display(0, ">" + stations[next_station_index].name);
+                                }
+
+                                if (current_mode == application_mode.menu2)
+                                {
+                                    current_m3uIdx--;
+                                    if (current_m3uIdx < 0) current_m3uIdx = m3uFiles.Count() - 1;
+                                    log("current M3U:" + current_m3uIdx + " " + m3uFiles[current_m3uIdx]);
+                                    display(0, "M3U:" + m3uFiles[current_m3uIdx]);
+                                    display(2, "> select M3U");
+                                }
+
+                                if (current_mode == application_mode.menu3)
+                                {
+                                    next_btDevice--;
+                                    if (next_btDevice < 0) next_btDevice = btDevices.Count() - 1;
+                                    log("next BT device:" + btDevices[next_btDevice].name);
+                                    display(0, btDevices[next_btDevice].name);
+                                    display(2, "> select device");
+                                }
+                                timer.Resume();
+                                break;
+                            }
+
+                        case keys.DOWN:
+                            {
+                                if (current_mode == application_mode.normal || current_mode == application_mode.select_station)
+                                {
+                                    next_station_index++;
+                                    if (next_station_index > stations.Count()-1) next_station_index = 1;
+                                    log("Station:" + next_station_index + " " + stations[next_station_index].name);
+                                    current_mode = application_mode.select_station;
+                                    display(0, ">" + stations[next_station_index].name);
+                                }
+
+                                if (current_mode == application_mode.menu2)
+                                {
+                                    current_m3uIdx++;
+                                    if (current_m3uIdx > m3uFiles.Count() - 1) current_m3uIdx = 0;
+                                    log("current M3U:" + current_m3uIdx + " " + m3uFiles[current_m3uIdx]);
+                                    display(0, "M3U:" + m3uFiles[current_m3uIdx]);
+                                    display(2, "> select M3U");
+                                }
+
+                                if (current_mode == application_mode.menu3)
+                                {
+                                    next_btDevice++;
+                                    if (next_btDevice > btDevices.Count() - 1) next_btDevice = 0;
+                                    log("next BT device:" + btDevices[next_btDevice].name);
+                                    display(0, btDevices[next_btDevice].name);
+                                    display(2, "> select device");
+
+                                }
+                                timer.Resume();
+                                break;
+                            }
+
+                        case keys.MENU:
+                            {
+
+                                //getRadioStations();
+                                //getM3Ufiles();
+
+                                if (current_mode == application_mode.normal || current_mode == application_mode.stopped)
+                                {
+                                    changeToMode(application_mode.menu1);
+                                    display(0, "MENU I");
+                                    display(2, "STOP <> PLAY");
+                                    break;
+                                }
+
+                                if (current_mode == application_mode.select_station || current_mode == application_mode.stopped)
+                                {
+                                    changeToMode(application_mode.normal);
+                                    display(0, "MENU EXIT");
+                                    break;
+                                }
+
+                                if (current_mode == application_mode.menu1 || current_mode == application_mode.stopped)
+                                {
+                                    changeToMode(application_mode.menu2);
+                                    display(0, "MENU II: L=restart MPD");
+                                    display(2, "Up/Dwn: select M3U file");
+                                    break;
+                                }
+
+                                if (current_mode == application_mode.menu2)
+                                {
+                                    changeToMode(application_mode.menu3);
+                                    display(0, "MENU III: Device");
+                                    display(2, current_device.name);
+                                    break;
+                                }
+
+                                if (current_mode == application_mode.menu3)
+                                {
+                                    changeToMode(application_mode.normal);
+                                    hello();
+                                    timer.Resume();
+                                }
+                                break;
+                            }
+                    }
+                }
+
+                catch (Exception ex)
+                {
+                    Display.Magenta();
+                    log("Exception on Key press : \n\r" + ex.Message);
+                    display(0, "Sorry, exception");
+                }
+            }
+
+        }
+
+        #endregion
+
         /// <summary>
         /// execute a linux command and return the output/result
         /// </summary>
@@ -225,9 +477,9 @@ namespace Display2
         public List<string> excecute (string cmd, string args)
         {
             List<string> output = new List<string>();
-            log("execute:" + cmd + " " + args);
+            log("#### execute:" + cmd + " " + args);
             output = jonas.Process_util.process_exec_output(cmd, args);
-            if (output!=null) logList(output);
+            //if (output!=null) logList(output);
             return (output);
         }
 
@@ -260,20 +512,6 @@ namespace Display2
                     log("connected is " + current_device.name);
                 }
 
-                if (s.Contains("WH-CH710N"))
-                {
-                    current_device = device_wch710;
-                    device_connected = true;
-                    log("connected is " + current_device.name);
-                }
-
-                if (s.Contains("WH-CH500"))
-                {
-                    current_device = device_wch500;
-                    device_connected = true;
-                    log("connected is " + current_device.name);
-                }
-
                 if (s.Contains("FY - R919"))
                 {
                     current_device = device_holz;
@@ -298,12 +536,16 @@ namespace Display2
                 m3uFiles.Add(s);
             }
 
-            foreach (string s in m3uFiles)
-            {
-                log("M3U: " + s);
-            }
+            //foreach (string s in m3uFiles)
+            //{
+            //    log("M3U: " + s);
+            //}
 
-            
+            int k = 0;
+            for (k = 0; k < m3uFiles.Count; k++)
+            {
+                log("M3U: " + k +  " " + m3uFiles[k]);
+            }
         }
 
         /// <summary>
@@ -312,7 +554,13 @@ namespace Display2
         public void getRadioStations()
         {
             stations.Clear();
+            log("read radio stations");
             output = excecute("mpc", "playlist");
+
+            // dummy station 
+            station dummy = new station();
+            dummy.name = "index 0";
+            stations.Add(dummy);
 
             if (output.Count > 0)
             {
@@ -323,10 +571,14 @@ namespace Display2
                     stations.Add(sta);
                 }
 
-                foreach (station sta in stations)
-                {
-                    log(" Station: " + sta.name);
-                }
+                log("number of radio stations :" + stations.Count);
+
+                //foreach (station sta in stations)
+                //{
+                //    log(" Station: " + sta.name);
+                //}
+
+
             }
             else
             {
@@ -449,7 +701,8 @@ namespace Display2
         {
             log(" btDisConnect from " + dev.name);
             output = excecute("mpc", " stop");
-            output = excecute("bluetoothctl", "disconnect " + current_device.mac_address); Thread.Sleep(500);
+            output = excecute("bluetoothctl", "disconnect " + current_device.mac_address); 
+            Thread.Sleep(500);
             logList(output);
         }
 
@@ -466,252 +719,9 @@ namespace Display2
             SaveSettings();
         }
 
-        /// <summary>
-        /// handle key pressed event
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private async void OnKeyPressed(object sender, KeyEventArgs e)
-        {
-            int key;
-            log("Key pressed : " + e.keycode.ToString() + " in mode : " + current_mode);
-            LcdDisplay.Display.lcd_init();
-            LcdDisplay.Display.Clear();
 
-            if (e.keycode != 0x0)
-            {
-                displayReset();
-                Display.Clear();
-                Display.White();
-                timer.Suspend();
-                key = e.keycode;
-                log("event key pressed: " + key);
 
-                try
-                {
-                    switch (key)
-                    {
-                        case keys.LEFT:
-                            {
-                                if (current_mode == application_mode.normal || current_mode == application_mode.stopped)
-                                {
-                                    if (volume > 50) volume = volume - 5;
-                                    output = excecute("mpc", "play " + (current_station_index + 1).ToString());
-                                    display(0,"VOL-- " + volume);
-                                    setVolume(volume);
-                                }
-
-                                if (current_mode == application_mode.menu1)
-                                {
-                                    display(0, "Stop");
-                                    output = excecute("mpc", "stop");
-                                    changeToMode(application_mode.stopped);
-                                }
-
-                                if (current_mode == application_mode.menu2)
-                                {
-                                    display(0, "RESTART MPD");
-                                    mpd_restart();
-                                    changeToMode(application_mode.normal);
-                                    LcdDisplay.Display.Clear();
-                                    display(0, "RESTART DONE");
-                                }
-                                timer.Resume();
-                                break;
-                            }
-
-                        case keys.RIGHT:
-                            {
-
-                                if (current_mode == application_mode.normal || current_mode == application_mode.stopped)
-                                {
-                                    if (volume < 100) volume = volume + 5;
-                                    output = excecute("mpc", "play " + (current_station_index + 1).ToString());
-                                    display(0, "VOL++ " + volume);
-                                    setVolume(volume);
-                                }
-
-                                if (current_mode == application_mode.select_station || current_mode == application_mode.stopped)
-                                {
-                                    current_station_index = next_station_index;
-                                    display(0, "PLAY " + current_station_index);
-                                    output = excecute("mpc", " stop ");
-                                    Thread.Sleep(250);
-                                    output = excecute("mpc", "play " + (current_station_index+1).ToString());
-                                    Display.Clear();
-                                    if (output != null) display(0, output[0]);
-                                    SaveSettings();
-                                    changeToMode(application_mode.normal);
-                                }
-
-                                if (current_mode == application_mode.menu1 || current_mode == application_mode.stopped)
-                                {
-                                    display(0, "Play");
-                                    output = excecute("mpc", "play");
-                                    changeToMode(application_mode.normal);
-                                }
-
-                                if (current_mode == application_mode.menu2)
-                                {
-                                    display(0, "Load M3U file ");
-                                    display(2, m3uFiles[current_m3uIdx]);
-                                    output = excecute("mpc", " stop");
-                                    output = excecute("mpc", " clear");
-                                    output = excecute("mpc", " load " + m3uFiles[current_m3uIdx]);
-                                    getRadioStations();
-                                    SaveSettings();
-                                    changeToMode(application_mode.normal);
-                                }
-
-                                if (current_mode == application_mode.menu3)
-                                {
-                                    display(0, "Connect Device ");
-                                    display(2, btDevices[next_btDevice].name);
-
-                                    if (btDevices[next_btDevice].name == "Disconnect")
-                                    {
-                                        btDisconnectAll();
-                                    }
-                                    else
-                                    {
-                                        btDisConnect(current_device);
-                                        current_device = btDevices[next_btDevice];
-                                        btConnect(current_device);
-                                        changeToMode(application_mode.normal);
-                                    }
-
-                                }
-                                timer.Resume();
-                                break;
-                            }
-
-                        case keys.UP:
-                            {
-                                if (current_mode == application_mode.normal || current_mode == application_mode.select_station)
-                                {
-                                    next_station_index--;
-                                    if (next_station_index < 0) next_station_index = stations.Count();
-                                    changeToMode(application_mode.select_station);
-                                    display(0, ">" +stations[next_station_index].name);
-                                }
-
-                                if (current_mode == application_mode.menu2)
-                                {
-                                    current_m3uIdx--;
-                                    if (current_m3uIdx < 0) current_m3uIdx = m3uFiles.Count() - 1;
-                                    log("current M3U:" + current_m3uIdx + " " + m3uFiles[current_m3uIdx]);
-                                    display(0, "M3U:" + m3uFiles[current_m3uIdx]);
-                                    display(2, "> select M3U");
-                                }
-
-                                if (current_mode == application_mode.menu3)
-                                {
-                                    next_btDevice--;
-                                    if (next_btDevice < 0) next_btDevice = btDevices.Count() - 1;
-                                    log("next BT device:" + btDevices[next_btDevice].name);
-                                    display(0, btDevices[next_btDevice].name);
-                                    display(2, "> select device");
-                                }
-                                timer.Resume();
-                                break;
-                            }
-
-                        case keys.DOWN:
-                            {
-                                if (current_mode == application_mode.normal || current_mode == application_mode.select_station)
-                                {
-                                    next_station_index++;
-                                    if (next_station_index > stations.Count()) next_station_index = 0;
-                                    log("Station:" + next_station_index + " " + stations[next_station_index].name);
-                                    current_mode = application_mode.select_station;
-                                    display(0, ">" +stations[next_station_index].name);
-                                }
-
-                                if (current_mode == application_mode.menu2)
-                                {
-                                    current_m3uIdx++;
-                                    if (current_m3uIdx > m3uFiles.Count() - 1) current_m3uIdx = 0;
-                                    log("current M3U:" + current_m3uIdx + " " + m3uFiles[current_m3uIdx]);
-                                    display(0, "M3U:" + m3uFiles[current_m3uIdx]);
-                                    display(2, "> select M3U");
-                                }
-
-                                if (current_mode == application_mode.menu3)
-                                {
-                                    next_btDevice++;
-                                    if (next_btDevice > btDevices.Count() - 1) next_btDevice = 0;
-                                    log("next BT device:" + btDevices[next_btDevice].name);
-                                    display(0, btDevices[next_btDevice].name);
-                                    display(2, "> select device");
-
-                                }
-                                timer.Resume();
-                                break;
-                            }
-
-                        case keys.MENU:
-                            {
-
-                                getRadioStations();
-                                getM3Ufiles();
-
-                                if (current_mode == application_mode.normal || current_mode == application_mode.stopped)
-                                {
-                                    changeToMode(application_mode.menu1);
-                                    Display.Red();
-                                    display(0, "MENU I");
-                                    display(2, "STOP <> PLAY");
-                                    break;
-                                }
-
-                                if (current_mode == application_mode.select_station || current_mode == application_mode.stopped)
-                                {
-                                    changeToMode(application_mode.normal);
-                                    Display.Red();
-                                    display(0, "MENU EXIT");
-                                    break;
-                                }
-
-                                if (current_mode == application_mode.menu1 || current_mode == application_mode.stopped)
-                                {
-                                    changeToMode(application_mode.menu2);
-                                    Display.Red();
-                                    display(0, "MENU II: L=restart MPD");
-                                    display(2, "Up/Dwn: select M3U file");
-                                    break;
-                                }
-
-                                if (current_mode == application_mode.menu2)
-                                {
-                                    changeToMode(application_mode.menu3);
-                                    Display.Red();
-                                    display(0, "MENU III: Device");
-                                    display(2, current_device.name);
-                                    break;
-                                }
-
-                                if (current_mode == application_mode.menu3)
-                                {
-                                    changeToMode(application_mode.normal);
-                                    hello();
-                                    timer.Resume();
-                                }
-                            break;
-                            }
-                    }
-                }
-
-                catch (Exception ex)
-                {
-                    Display.Magenta();
-                    log("Exception on Key press : \n\r" + ex.Message);
-                    display(0, "Sorry, exception");
-                }
-            }
-
-        }
-
-        }
+    }
 
     /// <summary>
     /// an audio device
