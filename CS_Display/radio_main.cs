@@ -29,9 +29,12 @@ namespace Display2
         List<AudioDeviceClass>  btDevices = new List<AudioDeviceClass>();
         public AudioDeviceClass device_holz = new AudioDeviceClass("HolzRadio", "/home/pi/mpd/script/holz", "FY-R919 - A2DP", "0A:A5:88:33:28:94");
         public AudioDeviceClass device_bose = new AudioDeviceClass("bose", "/home/pi/mpd/script/bose", "Bose Mini II SoundLin - A2DP", "28:11:A5:19:8A:E3");
-        public AudioDeviceClass device_airpods = new AudioDeviceClass("airpods", "/home/pi/mpd/script/airpods",  "Airpods", " E8:85:4B:6E:48:56");
+        public AudioDeviceClass device_anker = new AudioDeviceClass("Anker", "/home/pi/mpd/script/anker_wowa", "Anker", "AB:CD:EF:00:2C:02");
+        public AudioDeviceClass device_airpods = new AudioDeviceClass("airpods", "/home/pi/mpd/script/airpods",  "Airpods", "E8:85:4B:6E:48:56");
  
         public AudioDeviceClass disconnect  = new AudioDeviceClass("disconnect", "" ,  "", "");
+
+        public String[] mode_name = { "playing", "play_stop", "playlist", "btDevice", "station", "m3u file", "stopped" };
 
         string current_device_name = "";
         Boolean device_connected = false;
@@ -152,6 +155,7 @@ namespace Display2
 
             btDevices.Add(device_holz);
             btDevices.Add(device_bose);
+            btDevices.Add(device_anker);
             btDevices.Add(device_airpods);
             btDevices.Add(disconnect);
             output = excecute("mpc", " load " + "Germany");
@@ -234,12 +238,11 @@ namespace Display2
         {
             int key;
             log("Key pressed : " + e.keycode.ToString() + " in mode : " + current_mode);
-            //LcdDisplay.Display.lcd_init();
-            //LcdDisplay.Display.Clear();
 
             if (e.keycode != 0x0)
             {
                 timer.Suspend();
+                displayReset();
                 Display.Clear();
                 Display.White();
 
@@ -259,7 +262,7 @@ namespace Display2
                                     setVolume(volume);
                                 }
 
-                                if (current_mode == application_mode.play_stop)
+                                if (current_mode == application_mode.select_play_stop)
                                 {
                                     display(0, "Stop");
                                     output = excecute("mpc", "stop");
@@ -274,7 +277,6 @@ namespace Display2
                                     LcdDisplay.Display.Clear();
                                     display(0, "RESTART DONE");
                                 }
-                                timer.Resume();
                                 break;
                             }
 
@@ -302,7 +304,7 @@ namespace Display2
                                     changeToMode(application_mode.playing);
                                 }
 
-                                if (current_mode == application_mode.play_stop || current_mode == application_mode.stopped)
+                                if (current_mode == application_mode.select_play_stop || current_mode == application_mode.stopped)
                                 {
                                     display(0, "Play");
                                     output = excecute("mpc", "play");
@@ -339,7 +341,6 @@ namespace Display2
                                     }
 
                                 }
-                                timer.Resume();
                                 break;
                             }
 
@@ -371,7 +372,6 @@ namespace Display2
                                     display(0, btDevices[next_btDevice].name);
                                     display(2, "> select device");
                                 }
-                                timer.Resume();
                                 break;
                             }
 
@@ -404,7 +404,6 @@ namespace Display2
                                     display(2, "> select device");
 
                                 }
-                                timer.Resume();
                                 break;
                             }
 
@@ -416,7 +415,7 @@ namespace Display2
 
                                 if (current_mode == application_mode.playing || current_mode == application_mode.stopped)
                                 {
-                                    changeToMode(application_mode.play_stop);
+                                    changeToMode(application_mode.select_play_stop);
                                     display(0, "MENU I");
                                     display(2, "STOP <> PLAY");
                                     break;
@@ -429,7 +428,7 @@ namespace Display2
                                     break;
                                 }
 
-                                if (current_mode == application_mode.play_stop || current_mode == application_mode.stopped)
+                                if (current_mode == application_mode.select_play_stop || current_mode == application_mode.stopped)
                                 {
                                     changeToMode(application_mode.select_playlist);
                                     display(0, "MENU II: L=restart MPD");
@@ -450,11 +449,14 @@ namespace Display2
                                     changeToMode(application_mode.playing);
                                     hello();
                                 }
-                                timer.Resume();
                                 break;
                             }
                     }
+                    log("timer resume ...");
+                    timer.Resume();
+                    log("timer resume done ");
                 }
+
 
                 catch (Exception ex)
                 {
@@ -489,8 +491,7 @@ namespace Display2
         /// <param name="mode"></param>
         public void changeToMode(int mode)
         {
-
-            log("Mode changed to  : " + mode.ToString());
+            log("Mode changed to  : " + mode.ToString() + " " + mode_name[mode]);
             current_mode = mode;
             SaveSettings();
             log("Current Mode     :  " + current_mode);
@@ -619,6 +620,7 @@ namespace Display2
         {
             log("****************** MPD RESTART ************************");
             btDisConnect(current_device);
+            Thread.Sleep(300);
 
             output = excecute("service", " bluetooth restart");
             Thread.Sleep(300);
@@ -693,7 +695,7 @@ namespace Display2
         {
             log(" btDisConnect from " + dev.name);
             output = excecute("mpc", " stop");
-            output = excecute("bluetoothctl", "disconnect " + current_device.mac_address); 
+            output = excecute("bluetoothctl", "disconnect " + dev.mac_address); 
             Thread.Sleep(500);
             logList(output);
         }
@@ -760,10 +762,12 @@ namespace Display2
     /// <summary>
     /// the mode depends on key pressed
     /// </summary>
-    public static class application_mode
+
+
+public static class application_mode
     {
         public const int playing = 0;
-        public const int play_stop = 1;
+        public const int select_play_stop = 1;
         public const int select_playlist = 2;
         public const int select_BT_device = 3;
         public const int select_station = 4;

@@ -25,18 +25,6 @@ namespace Display2.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("Holz")]
-        public string btDeviceName {
-            get {
-                return ((string)(this["btDeviceName"]));
-            }
-            set {
-                this["btDeviceName"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("85")]
         public int Volume {
             get {
@@ -80,6 +68,18 @@ namespace Display2.Properties {
             }
             set {
                 this["mode"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("HolzRadio")]
+        public string btDeviceName {
+            get {
+                return ((string)(this["btDeviceName"]));
+            }
+            set {
+                this["btDeviceName"] = value;
             }
         }
     }

@@ -148,13 +148,13 @@ namespace Display2
         public void displayReset()
         {
             Display.mpc_init();
-            Thread.Sleep(50);
+            Thread.Sleep(150);
             Display.lcd_init();
-            Thread.Sleep(50);
+            Thread.Sleep(150);
         }
         
         /// <summary>
-        /// display text
+        /// display text on LCD Display
         /// </summary>
         /// <param name="line"></param>
         /// <param name="text"></param>
@@ -162,7 +162,6 @@ namespace Display2
         {
             log(" -> Display : " + text);
             //Display.Clear();
-            Thread.Sleep(350);
             if (line == 2)
             {
                 Display.Line2();
